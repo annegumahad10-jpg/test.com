@@ -1,156 +1,272 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Mini SHEIN Social</title>
+  <title>Voucher Store</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: 'Segoe UI', sans-serif; margin:0; background: #f0f2f5; }
-    .header { background: linear-gradient(90deg,#8e44ad,#ff4d6d); color:white; padding:15px 20px; text-align:center; font-size:24px; font-weight:bold; box-shadow:0 3px 8px rgba(0,0,0,0.2);}
-    .card { background:white; padding:20px; margin:20px auto; border-radius:15px; max-width:500px; box-shadow:0 5px 15px rgba(0,0,0,0.1);}
-    input, textarea { width:100%; padding:12px; margin-top:10px; border-radius:10px; border:1px solid #ddd; font-size:16px;}
-    .btn { padding:10px 18px; border-radius:10px; border:none; cursor:pointer; font-weight:bold; margin-top:10px; transition:0.3s; font-size:16px; }
-    .btn-red { background:#ff4d6d;color:white;} .btn-red:hover{background:#e63950;}
-    .btn-purple { background:#8e44ad;color:white;} .btn-purple:hover{background:#732d91;}
-    .btn-white { background:white;color:#8e44ad;border:2px solid #8e44ad;} .btn-white:hover{background:#f2e6ff;}
-    .post { background:#f9f9f9; padding:12px; margin-top:12px; border-radius:12px; text-align:left; position:relative;}
-    .username { font-weight:bold; color:#8e44ad; margin-right:6px; }
-    .post img { max-width:100%; margin-top:8px; border-radius:8px; }
-    .post-buttons { display:flex; justify-content:flex-end; margin-top:5px; }
-    .post-buttons button { padding:5px 10px; margin-left:5px; font-size:14px;}
-    #app { padding-top:50px; }
-    label { font-weight:bold; margin-top:10px; display:block; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; padding: 20px; }
+    .card { background: white; padding: 20px; border-radius: 15px; max-width: 400px; margin: 20px auto; text-align:center; box-shadow:0 5px 15px rgba(0,0,0,0.1);}
+    button { padding: 10px 20px; margin-top: 10px; border-radius:10px; border:none; background:#007bff; color:white; cursor:pointer;}
+    button:hover { background:#0056b3;}
+    .secondary-btn { background:#ff4d6d;}
+    .secondary-btn:hover { background:#e63950;}
+    input { width: 90%; padding: 8px; margin:5px 0; border-radius: 5px; border: 1px solid #ccc;}
+    hr { margin:15px 0; }
   </style>
 </head>
 <body>
 
-<div class="header">Mini SHEIN Social</div>
 <div id="app"></div>
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
 <script>
-let currentUser = localStorage.getItem("currentUser") || "";
-let posts = JSON.parse(localStorage.getItem("posts") || "[]");
+const firebaseConfig = {
+    apiKey: "AIzaSyBEgn1TkHTX1Tq731xwKMwCTOBahCmJylE",
+    authDomain: "voucherstore-32495.firebaseapp.com",
+    projectId: "voucherstore-32495",
+    storageBucket: "voucherstore-32495.firebasestorage.app",
+    messagingSenderId: "484369779532",
+    appId: "1:484369779532:web:df1dd7ecee7171bd29dde9"
+  };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-// ---------- LOGIN ----------
-function showLogin(){
+/* ================= HOME ================= */
+function showHomepage() {
   document.getElementById("app").innerHTML = `
     <div class="card">
-      <h2>Login</h2>
-      <input type="text" id="username" placeholder="Enter username" required>
-      <button class="btn btn-red" onclick="login()">Login</button>
+      <h2>Voucher Store</h2>
+      <button onclick="showBuyPage()">Buy Vouchers</button>
+      <button onclick="showMyOrder()">Check My Order</button>
+      <button onclick="showAdminPanel()" class="secondary-btn">Admin Panel</button>
     </div>
   `;
 }
 
-function login(){
-  const input = document.getElementById("username").value.trim();
-  if(!input) return alert("Enter username");
-  currentUser = input;
-  localStorage.setItem("currentUser", currentUser);
-  showHome();
+/* ================= BUY ================= */
+function showBuyPage() {
+  db.ref('vouchers').once('value').then(snapshot => {
+    const vouchers = snapshot.val() || {};
+    const stock70 = vouchers['70_percent']?.stock ?? 0;
+    const stock73 = vouchers['73_percent']?.stock ?? 0;
+    const price70 = vouchers['70_percent']?.price ?? 0;
+    const price73 = vouchers['73_percent']?.price ?? 0;
+
+    document.getElementById("app").innerHTML = `
+      <div class="card">
+        <h2>Buy Vouchers</h2>
+
+        <p>70% Voucher (₱${price70}) - Available: ${stock70}</p>
+        <input type="number" id="qty70" placeholder="Quantity for 70%">
+
+        <p>73% Voucher (₱${price73}) - Available: ${stock73}</p>
+        <input type="number" id="qty73" placeholder="Quantity for 73%">
+
+        <p><strong>GCASH:</strong> 09067834145</p>
+
+        <input type="text" id="reference" placeholder="GCASH reference number">
+
+        <button onclick="submitOrder()">Submit Order</button>
+        <button onclick="showHomepage()" class="secondary-btn">Back</button>
+
+        <div id="buyResult"></div>
+      </div>
+    `;
+  });
 }
 
-// ---------- HOME / FEED ----------
-function showHome(){
-  let postsHTML = posts.map((p,index) => `
-    <div class="post">
-      <span class="username">${p.user}</span>${p.message || ""}
-      ${p.image ? `<img src="${p.image}">` : ""}
-      ${p.sheinLink ? `<p>🛒 SHEIN: <a href="${p.sheinLink}" target="_blank">${p.sheinLink}</a></p>` : ""}
-      ${p.originalPrice ? `<p>Original Price: ₱${p.originalPrice}</p>` : ""}
-      ${p.discountedPrice ? `<p>70% Voucher Price: ₱${p.discountedPrice}</p>` : ""}
-      ${p.pointsUsed ? `<p>Points Used: ${p.pointsUsed}</p>` : ""}
-      ${p.finalPrice ? `<p>Final Price: ₱${p.finalPrice}</p>` : ""}
-      ${p.user === currentUser ? `<div class="post-buttons">
-        <button class="btn btn-white" onclick="unsendPost(${index})">Unsend</button>
-      </div>` : ""}
-    </div>
-  `).join("");
+function submitOrder() {
+  const qty70 = parseInt(document.getElementById("qty70").value) || 0;
+  const qty73 = parseInt(document.getElementById("qty73").value) || 0;
+  const reference = document.getElementById("reference").value.trim();
 
+  if(qty70 === 0 && qty73 === 0) return alert("Enter quantity");
+  if(!reference) return alert("Enter reference");
+
+  const orderRef = db.ref('orders').push();
+
+  db.ref('vouchers').once('value').then(snap => {
+    const vouchers = snap.val() || {};
+    const price70 = vouchers['70_percent']?.price ?? 0;
+    const price73 = vouchers['73_percent']?.price ?? 0;
+    const total = (qty70 * price70) + (qty73 * price73);
+
+    return orderRef.set({
+      qty70, qty73, total,
+      reference,
+      status: "pending",
+      timestamp: Date.now()
+    }).then(()=>total);
+  }).then(total=>{
+    document.getElementById("buyResult").innerHTML =
+      `<p style="color:green;">Order submitted! Total ₱${total}</p>`;
+  });
+}
+
+/* ================= ADMIN LOGIN ================= */
+function showAdminPanel() {
   document.getElementById("app").innerHTML = `
     <div class="card">
-      <h2>Welcome, ${currentUser}</h2>
-
-      <textarea id="message" placeholder="Write something..."></textarea>
-      <input type="file" id="fileInput">
-
-      <label>SHEIN Item Link / SKU (optional)</label>
-      <input type="text" id="sheinLink" placeholder="Enter link or SKU">
-      <label>Original Price (₱)</label>
-      <input type="number" id="originalPrice" placeholder="Enter price...">
-      <label>Points Available</label>
-      <input type="number" id="points" placeholder="Enter points...">
-      <button class="btn btn-purple" onclick="addPost()">Post</button>
-
-      <div style="margin-top:20px;"><strong>Feed:</strong></div>
-      <div id="feed">${postsHTML || "<p>No posts yet.</p>"}</div>
-      <button class="btn btn-white" onclick="logout()">Logout</button>
+      <h2>Admin Login</h2>
+      <input type="email" id="adminEmail" placeholder="Email">
+      <input type="password" id="adminPassword" placeholder="Password">
+      <button onclick="adminLogin()">Login</button>
+      <button onclick="showHomepage()" class="secondary-btn">Back</button>
+      <div id="adminLoginResult"></div>
     </div>
   `;
 }
 
-// ---------- ADD POST ----------
-function addPost(){
-  const msg = document.getElementById("message").value.trim();
-  const fileInput = document.getElementById("fileInput");
-  const sheinLink = document.getElementById("sheinLink").value.trim();
-  const originalPrice = parseFloat(document.getElementById("originalPrice").value);
-  const points = parseFloat(document.getElementById("points").value);
+function adminLogin() {
+  const email = adminEmail.value.trim();
+  const password = adminPassword.value.trim();
+  const resultDiv = document.getElementById("adminLoginResult");
 
-  if(!msg && !fileInput.files.length && !sheinLink) return alert("Enter message, file, or SHEIN link");
+  firebase.auth().signInWithEmailAndPassword(email, password)
+    .then(userCredential => {
+      const user = userCredential.user;
+      db.ref("admins/" + user.uid).once("value").then(snapshot=>{
+        if(snapshot.exists()){
+          showAdminDashboard();
+        } else {
+          resultDiv.innerHTML = "Not authorized.";
+          firebase.auth().signOut();
+        }
+      });
+    })
+    .catch(err=>{
+      resultDiv.innerHTML = err.message;
+    });
+}
 
-  // Calculate 70% capped 410
-  let discountedPrice="", finalPrice="", pointsUsed="";
-  if(originalPrice){
-    const discount = Math.min(originalPrice*0.7,410);
-    discountedPrice = Math.round(originalPrice - discount);
-    if(points){
-      const maxDeduction = Math.floor(discountedPrice*0.3);
-      pointsUsed = Math.min(points, maxDeduction);
-      finalPrice = discountedPrice - pointsUsed;
+/* ================= ADMIN DASHBOARD ================= */
+function showAdminDashboard() {
+  db.ref('vouchers').once('value').then(stockSnap=>{
+    const vouchers = stockSnap.val() || {};
+    const stock70 = vouchers['70_percent']?.stock ?? 0;
+    const stock73 = vouchers['73_percent']?.stock ?? 0;
+
+    db.ref('orders').once('value').then(orderSnap=>{
+      const orders = orderSnap.val() || {};
+
+      let html = `
+        <div class="card">
+          <h2>Admin Panel</h2>
+
+          <h3>Manage Stock</h3>
+          <p>70% Current: ${stock70}</p>
+          <input type="number" id="newStock70" placeholder="Set new stock">
+          <button onclick="updateStock('70_percent')">Update 70%</button>
+
+          <p>73% Current: ${stock73}</p>
+          <input type="number" id="newStock73" placeholder="Set new stock">
+          <button onclick="updateStock('73_percent')">Update 73%</button>
+
+          <hr>
+      `;
+
+      for(const id in orders){
+        const o = orders[id];
+        const assigned70 = o.vouchersAssigned?.['70_percent'] || [];
+        const assigned73 = o.vouchersAssigned?.['73_percent'] || [];
+
+        html += `
+          <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+            <p><b>ID:</b> ${id}</p>
+            <p>Qty70: ${o.qty70 || 0}</p>
+            <p>Qty73: ${o.qty73 || 0}</p>
+            <p>Total: ₱${o.total || 0}</p>
+            <p>Status: ${o.status}</p>
+        `;
+
+        if(o.status === "confirmed"){
+          html += `
+            <p>70% Codes: ${assigned70.length ? assigned70.join(", ") : "None"}</p>
+            <p>73% Codes: ${assigned73.length ? assigned73.join(", ") : "None"}</p>
+          `;
+        }
+
+        if(o.status === "pending"){
+          html += `
+            <button onclick="confirmOrderAdmin('${id}', ${o.qty70}, ${o.qty73})">
+              Confirm
+            </button>
+          `;
+        }
+
+        html += `</div>`;
+      }
+
+      html += `<button onclick="showHomepage()" class="secondary-btn">Back</button></div>`;
+      document.getElementById("app").innerHTML = html;
+    });
+  });
+}
+
+function updateStock(type){
+  const value = type === '70_percent'
+    ? parseInt(document.getElementById("newStock70").value)
+    : parseInt(document.getElementById("newStock73").value);
+
+  if(isNaN(value)) return alert("Enter valid number");
+
+  db.ref('vouchers/' + type).update({ stock:value })
+    .then(()=>{
+      alert("Stock updated!");
+      showAdminDashboard();
+    });
+}
+
+/* ================= CONFIRM ORDER ================= */
+function confirmOrderAdmin(id, qty70, qty73){
+  let codes70 = qty70>0 ? prompt("Enter 70% codes (comma separated)") : "";
+  let codes73 = qty73>0 ? prompt("Enter 73% codes (comma separated)") : "";
+
+  db.ref('orders/' + id).update({
+    status:"confirmed",
+    vouchersAssigned:{
+      "70_percent": codes70 ? codes70.split(",").map(s=>s.trim()) : [],
+      "73_percent": codes73 ? codes73.split(",").map(s=>s.trim()) : []
     }
-  }
+  }).then(()=>{
+    alert("Confirmed!");
+    showAdminDashboard();
+  });
+}
 
-  let imageData="";
-  let fileName="";
-  if(fileInput.files.length){
-    const file=fileInput.files[0];
-    fileName=file.name;
-    const reader=new FileReader();
-    reader.onload=function(e){
-      imageData=file.type.startsWith("image")?e.target.result:"";
-      const newPost={user:currentUser,message:msg,image:imageData,sheinLink:sheinLink,originalPrice:originalPrice,discountedPrice:discountedPrice,pointsUsed:pointsUsed,finalPrice:finalPrice,file:!imageData?true:false,fileName:!imageData?fileName:""};
-      posts.unshift(newPost);
-      localStorage.setItem("posts",JSON.stringify(posts));
-      showHome();
+/* ================= CHECK ORDER ================= */
+function showMyOrder(){
+  const reference = prompt("Enter reference:");
+  if(!reference) return;
+
+  db.ref('orders').once('value').then(snapshot=>{
+    const orders = snapshot.val() || {};
+    for(const id in orders){
+      const o = orders[id];
+      if(o.reference === reference){
+        const assigned70 = o.vouchersAssigned?.['70_percent'] || [];
+        const assigned73 = o.vouchersAssigned?.['73_percent'] || [];
+
+        document.getElementById("app").innerHTML = `
+          <div class="card">
+            <h2>My Order</h2>
+            <p>Status: ${o.status}</p>
+            <p>70% Codes: ${assigned70.length ? assigned70.join(", ") : "None"}</p>
+            <p>73% Codes: ${assigned73.length ? assigned73.join(", ") : "None"}</p>
+            <button onclick="showHomepage()">Back</button>
+          </div>
+        `;
+        return;
+      }
     }
-    reader.readAsDataURL(file);
-  } else {
-    const newPost={user:currentUser,message:msg,image:"",sheinLink:sheinLink,originalPrice:originalPrice,discountedPrice:discountedPrice,pointsUsed:pointsUsed,finalPrice:finalPrice,file:false,fileName:""};
-    posts.unshift(newPost);
-    localStorage.setItem("posts",JSON.stringify(posts));
-    showHome();
-  }
+    alert("Order not found");
+  });
 }
 
-// ---------- UNSEND ----------
-function unsendPost(index){
-  if(confirm("Are you sure you want to unsend this post?")){
-    posts.splice(index,1);
-    localStorage.setItem("posts",JSON.stringify(posts));
-    showHome();
-  }
-}
-
-// ---------- LOGOUT ----------
-function logout(){
-  currentUser="";
-  localStorage.removeItem("currentUser");
-  showLogin();
-}
-
-// ---------- INIT ----------
-currentUser ? showHome() : showLogin();
+showHomepage();
 </script>
-
 </body>
 </html>
